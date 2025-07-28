@@ -3419,11 +3419,12 @@ class Match implements
             $this->addLog("Knife round has been skipped by the admin.");
             $this->addMatchLog("Knife round has been skipped by the admin.");
             $this->say("Knife round has been skipped by the admin.", "red");
-
+            
             $this->ready["ct"] = false;
             $this->ready["t"] = false;
             $this->currentMap->setStatus(Map::STATUS_WU_1_SIDE, true);
             $this->setStatus(self::STATUS_WU_1_SIDE, true);
+            $this->undoKnifeConfig()->executeMatchConfig()->executeWarmupConfig();
 
             return true;
         }
