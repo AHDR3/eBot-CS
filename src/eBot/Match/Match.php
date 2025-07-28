@@ -3597,7 +3597,7 @@ class Match implements
         }
 
         if ($status && $status !== $this->getStatus()) {
-            if ($status < $this->getStatus()) {
+            if ($status < $this->getStatus() || $status > $this->getStatus()) {
                 $this->addLog("Swapping teams to match rolled‑back round.");
                 $this->swapSides();
             }
