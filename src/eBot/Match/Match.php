@@ -46,6 +46,32 @@ class Match implements
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     const STATUS_NOT_STARTED = 0;
     const STATUS_STARTING = 1;
     const STATUS_WU_KNIFE = 2;
@@ -113,6 +139,7 @@ class Match implements
     private $config_switch_auto = false;
     private $config_kniferound = false;
     private $config_streamer = false;
+    private $config_ready_on_halftime = false;
     private $streamerReady = false;
     private $rules;
     private $maxRound = 15;
@@ -285,6 +312,7 @@ class Match implements
             $this->ot_maxround = $this->matchData["overtime_max_round"];
         }
         $this->config_streamer = $this->matchData["config_streamer"];
+        $this->config_ready_on_halftime = $this->matchData["config_ready_on_halftime"];
 
         $this->maxRound = $this->matchData["max_round"];
         $this->oldMaxround = $this->maxRound;
@@ -1990,12 +2018,15 @@ class Match implements
             $this->resetSpecialSituation();
             if ($this->getStatus() == self::STATUS_FIRST_SIDE) {
                 if ($this->score["team_a"] + $this->score["team_b"] == $this->maxRound) {
-                    $this->swapSides();
                     $this->setStatus(self::STATUS_WU_2_SIDE, true);
                     $this->currentMap->setStatus(Map::STATUS_WU_2_SIDE, true);
+                    $this->swapSides();
                     $this->saveScore();
-
                     $this->rcon->send("mp_halftime_pausetimer 1");
+
+                    if (!$this->config_ready_on_halftime) {
+                        $this->adminForceStart(true);
+                    }
                 }
             } else if ($this->getStatus() == self::STATUS_SECOND_SIDE) {
                 if (($this->score["team_a"] + $this->score["team_b"] == $this->maxRound * 2) || ($this->score["team_a"] > $this->maxRound && !$this->config_full_score) || ($this->score["team_b"] > $this->maxRound && !$this->config_full_score)) {
@@ -2009,9 +2040,10 @@ class Match implements
                         $this->addLog("Going to overtime!");
                         $this->say("Going to overtime!");
                         $this->currentMap->setNbMaxRound($this->ot_maxround);
-                        //$this->rcon->send("mp_do_warmup_period 1; mp_warmuptime 30; mp_warmup_pausetimer 1");
-                        //$this->rcon->send("mp_restartgame 1");
-                        //$this->sendTeamNames();
+
+                        if (!$this->config_ready_on_halftime) {
+                            $this->adminForceStart(true);
+                        }
                     } else {
                         $this->currentMap->setStatus(Map::STATUS_MAP_ENDED, true);
 
@@ -2028,11 +2060,11 @@ class Match implements
                     $this->currentMap->setStatus(Map::STATUS_WU_OT_2_SIDE, true);
                     $this->saveScore();
                     $this->swapSides();
-                    //$this->sendTeamNames();
-                    // Not needed anymore with last updates
-                    // $this->rcon->send("mp_restartgame 1");
-
                     $this->rcon->send("mp_halftime_pausetimer 1");
+
+                    if (!$this->config_ready_on_halftime) {
+                        $this->adminForceStart(true);
+                    }
                 }
             } else if ($this->getStatus() == self::STATUS_OT_SECOND_SIDE) {
                 $scoreToReach = $this->oldMaxround * 2 + $this->ot_maxround * 2 + ($this->ot_maxround * 2 * ($this->nbOT - 1));
@@ -2048,8 +2080,11 @@ class Match implements
                         $this->currentMap->setNbMaxRound($this->ot_maxround);
                         $this->nbOT++;
                         $this->addLog("Going to overtime!");
-                        //$this->rcon->send("mp_do_warmup_period 1; mp_warmuptime 30; mp_warmup_pausetimer 1");
-                        //$this->rcon->send("mp_restartgame 1");
+
+
+                        if (!$this->config_ready_on_halftime) {
+                            $this->adminForceStart(true);
+                        }
                     } else {
                         $this->currentMap->setStatus(Map::STATUS_MAP_ENDED, true);
 
@@ -3482,12 +3517,14 @@ class Match implements
         }
     }
 
-    public function adminForceStart()
+    public function adminForceStart($no_logs = false)
     {
         if ($this->isWarmupRound()) {
-            $this->addLog("The match start has been forced by the admin.");
-            $this->addMatchLog("The match start has been forced by the admin.");
-            $this->say("The match start has been forced by the admin.", "red");
+            if (!$no_logs) {
+                $this->addLog("The match start has been forced by the admin.");
+                $this->addMatchLog("The match start has been forced by the admin.");
+                $this->say("The match start has been forced by the admin.", "red");
+            }
 
             $this->ready["ct"] = true;
             $this->ready["t"] = true;
