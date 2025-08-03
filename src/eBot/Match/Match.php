@@ -37,6 +37,15 @@ class Match implements
 
 
 
+
+
+
+
+
+
+
+
+
     const STATUS_NOT_STARTED = 0;
     const STATUS_STARTING = 1;
     const STATUS_WU_KNIFE = 2;
@@ -3010,14 +3019,7 @@ class Match implements
                     mysqli_query(Application::getInstance()->db, "DELETE FROM round WHERE round_id >= 1 AND map_id='" . $this->currentMap->getMapId() . "'");
                     mysqli_query(Application::getInstance()->db, "DELETE FROM round_summary WHERE round_id >= 1 AND map_id='" . $this->currentMap->getMapId() . "'");
                 } else {
-                    // Getting file to restore
-                    $data = $this->rcon->send("mp_backup_round_file_last");
-                    if (preg_match('!"mp_backup_round_file_last" = "(?<backup>[a-zA-Z0-9\-_\.]+)"!', $data, $match)) {
-                        $this->backupFile = $match["backup"];
-                    } else {
-                        $this->addLog("Backup file not found, simulating one.");
-                        $this->backupFile = "ebot_" . $this->match_id . "_round" . sprintf("%02s", $this->getNbRound()) . ".txt";
-                    }
+                    $this->backupFile = "ebot_" . $this->match_id . "_round" . sprintf("%02s", ($this->getNbRound() - 1)) . ".txt";
 
                     $this->addLog("Backup file: '" . $this->backupFile . "'.");
 
@@ -3552,6 +3554,7 @@ class Match implements
             $this->stop["t"] = true;
 
             $this->stopMatch();
+            $this->executeWarmupConfig();
 
             return true;
         }
