@@ -25,6 +25,18 @@ class Match implements
 {
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     const STATUS_NOT_STARTED = 0;
     const STATUS_STARTING = 1;
     const STATUS_WU_KNIFE = 2;
@@ -1897,22 +1909,60 @@ class Match implements
                 }
             }
 
-            mysqli_query(Application::getInstance()->db, "INSERT INTO round_summary
-                            (`match_id`,`map_id`,`score_a`,`score_b`,`bomb_planted`,`bomb_defused`,`bomb_exploded`,`ct_win`, `t_win`,`round_id`,`win_type`,`team_win`,`best_killer`,`best_killer_fk`,`best_killer_nb`,`best_action_type`,`best_action_param`, `backup_file_name`,`created_at`,`updated_at`)
-                            VALUES
-                            ('" . $this->match_id . "', '" . $this->currentMap->getMapId() . "', '" . $this->score["team_a"] . "', '" . $this->score["team_b"] . "',
-                                '" . (($this->gameBombPlanter != null) ? 1 : 0) . "',
-                                    '" . (($message->type == "bombdefused") ? 1 : 0) . "',
-                                        '" . (($message->type == "bombeexploded") ? 1 : 0) . "',
-                                            '" . (($message->getTeamWin() == "CT") ? 1 : 0) . "',
-                                                '" . (($message->getTeamWin() != "CT") ? 1 : 0) . "',
-                                                    '" . ($this->getNbRound() - 1) . "',
-                                                        '" . $message->type . "','" . $teamWin . "',
-                                                            $playerId, " . $playerFirstKill . ", $nb, " . (($bestActionType != null) ? "'$bestActionType'" : "NULL") . ", " . (($bestActionParam != null) ? "'" . addslashes(serialize($bestActionParam)) . "'" : "NULL") . ",
-                                                                " . $backupFile . ",
-                                                                NOW(),
-                                                                    NOW()
-                                                                    )") or $this->addLog("Can't insert round summary match " . $this->match_id . " - " . mysqli_error(Application::getInstance()->db), Logger::ERROR);
+            mysqli_query(
+                Application::getInstance()->db,
+                "INSERT INTO round_summary (
+                    match_id,
+                    map_id,
+                    score_a,
+                    score_b,
+                    side_a,
+                    side_b,
+                    bomb_planted,
+                    bomb_defused,
+                    bomb_exploded,
+                    ct_win,
+                    t_win,
+                    round_id,
+                    win_type,
+                    team_win,
+                    best_killer,
+                    best_killer_fk,
+                    best_killer_nb,
+                    best_action_type,
+                    best_action_param,
+                    backup_file_name,
+                    created_at,
+                    updated_at
+                ) VALUES (
+                    '" . $this->match_id . "',
+                    '" . $this->currentMap->getMapId() . "',
+                    '" . $this->score["team_a"] . "',
+                    '" . $this->score["team_b"] . "',
+                    '" . $this->side['team_a'] . "',
+                    '" . $this->side['team_b'] . "',
+                    '" . (($this->gameBombPlanter != null) ? 1 : 0) . "',
+                    '" . (($message->type == "bombdefused") ? 1 : 0) . "',
+                    '" . (($message->type == "bombeexploded") ? 1 : 0) . "',
+                    '" . (($message->getTeamWin() == "CT") ? 1 : 0) . "',
+                    '" . (($message->getTeamWin() != "CT") ? 1 : 0) . "',
+                    '" . ($this->getNbRound() - 1) . "',
+                    '" . $message->type . "',
+                    '" . $teamWin . "',
+                    $playerId,
+                    $playerFirstKill,
+                    $nb,
+                    " . (($bestActionType != null) ? "'$bestActionType'" : "NULL") . ",
+                    " . (($bestActionParam != null) ? "'" . addslashes(serialize($bestActionParam)) . "'" : "NULL") . ",
+                    " . $backupFile . ",
+                    NOW(),
+                    NOW()
+                )"
+            ) or $this->addLog(
+                        "Can't insert round summary match " . $this->match_id . " - " . mysqli_error(Application::getInstance()->db),
+                        Logger::ERROR
+                    );
+
             // END ROUND SUMMARY
             // Prevent the OverTime bug
             if ($this->config_ot) {
@@ -3419,7 +3469,7 @@ class Match implements
             $this->addLog("Knife round has been skipped by the admin.");
             $this->addMatchLog("Knife round has been skipped by the admin.");
             $this->say("Knife round has been skipped by the admin.", "red");
-            
+
             $this->ready["ct"] = false;
             $this->ready["t"] = false;
             $this->currentMap->setStatus(Map::STATUS_WU_1_SIDE, true);
@@ -3597,12 +3647,22 @@ class Match implements
         }
 
         if ($status && $status !== $this->getStatus()) {
-            if ($status < $this->getStatus() || $status > $this->getStatus()) {
-                $this->addLog("Swapping teams to match rolled‑back round.");
-                $this->swapSides();
-            }
             $this->setStatus($status, true);
             $this->currentMap->setStatus($statusMap, true);
+        }
+
+        $expectedTeamASide = strtolower($row['side_a']);
+        $expectedTeamBSide = strtolower($row['side_b']);
+
+        $currentTeamASide = $this->side['team_a'];
+        $currentTeamBSide = $this->side['team_b'];
+
+        if (
+            $expectedTeamASide !== $currentTeamASide ||
+            $expectedTeamBSide !== $currentTeamBSide
+        ) {
+            $this->addLog("Swapping teams to match rolled-back round sides: team_a ($currentTeamASide → $expectedTeamASide), team_b ($currentTeamBSide → $expectedTeamBSide)");
+            $this->swapSides();
         }
 
         $this->say("Round restored — going LIVE!");
